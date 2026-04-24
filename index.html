@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SGE-BUS | V15.2 Stable</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #3b82f6; --secondary: #1e293b; --accent: #22d3ee;
+            --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --bg: #0f172a;
+            --card: #1e293b; --border: rgba(255, 255, 255, 0.1);
+        }
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: #f1f5f9; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* PORTAL DE ACESSO */
+        #login-screen, #app-wrapper { display: none; width: 100%; height: 100vh; }
+        #login-screen { position: fixed; inset: 0; background: var(--bg); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 100%; max-width: 400px; border: 1px solid var(--border); text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); border-top: 4px solid var(--primary); }
+
+        /* NAVEGAÇÃO */
+        #app-wrapper { display: none; flex-direction: column; }
+        nav { width: 100%; background: var(--secondary); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
+        .profile { padding: 1.2rem; text-align: center; border-bottom: 1px solid var(--border); }
+        .nav-links { display: flex; overflow-x: auto; padding: 10px; gap: 8px; scrollbar-width: none; }
+        .link { padding: 12px 20px; background: rgba(255,255,255,0.03); border-radius: 10px; cursor: pointer; white-space: nowrap; font-size: 0.9rem; color: #94a3b8; border: 1px solid transparent; transition: 0.2s; }
+        .link.active { background: var(--primary); color: white; border-color: var(--accent); font-weight: bold; }
+
+        @media (min-width: 768px) {
+            #app-wrapper { flex-direction: row; }
+            nav { width: 280px; height: 100vh; position: fixed; border-right: 1px solid var(--border); border-bottom: none; display: flex; flex-direction: column; }
+            .nav-links { flex-direction: column; padding: 20px; overflow-y: auto; }
+            main { margin-left: 280px; width: calc(100% - 280px); padding: 2.5rem; overflow-y: auto; }
+        }
+
+        /* CONTEÚDO */
+        main { padding: 1.5rem; flex-grow: 1; }
+        .card { background: var(--card); padding: 1.8rem; border-radius: 1.5rem; border: 1px solid var(--border); margin-bottom: 1.2rem; animation: fadeIn 0.3s ease; }
+        input, select { width: 100%; padding: 16px; margin: 10px 0; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: white; font-size: 1rem; }
+        button { width: 100%; padding: 16px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; margin-top: 8px; }
+        
+        .btn-main { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: #000; }
+        .btn-mp { background: #009ee3; color: white; text-decoration: none; display: block; line-height: 55px; border-radius: 12px; margin-bottom: 10px; font-size: 0.9rem; }
+        .btn-trial { background: transparent; border: 1px solid var(--accent); color: var(--accent); font-size: 0.85rem; margin-top: 15px; }
+        
+        .badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; font-weight: 900; text-transform: uppercase; margin-top: 8px; display: inline-block; }
+        .log-row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <h2 style="margin-bottom: 5px;">SGE-BUS</h2>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 25px;">Gestão de Frota V15.2</p>
+            
+            <input type="text" id="user-in" placeholder="Usuário">
+            <input type="password" id="pass-in" placeholder="Senha">
+            
+            <button onclick="login()" class="btn-main">ENTRAR</button>
+            <div style="margin: 20px 0; height: 1px; background: var(--border);"></div>
+            <a href="https://mpago.la/243b92B" target="_blank" class="btn-mp">ASSINAR PREMIUM</a>
+            <button onclick="modoTeste()" class="btn-trial">TESTE GRÁTIS (DEMO)</button>
+        </div>
+    </div>
+
+    <div id="app-wrapper">
+        <nav>
+            <div class="profile">
+                <div id="u-name" style="font-weight: 900; color: var(--accent); font-size: 1.1rem;">-</div>
+                <div id="u-status"></div>
+            </div>
+            <div class="nav-links" id="main-menu"></div>
+            <div style="margin-top: auto; padding: 20px;">
+                <button onclick="logout()" style="background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid var(--danger); font-size: 0.8rem;">Desconectar</button>
+            </div>
+        </nav>
+
+        <main>
+            <section id="dash" class="aba">
+                <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
+                    <small style="color: var(--accent); font-weight: bold;">TOTAL CONSUMIDO</small>
+                    <h1 id="total-visor">0.0 L</h1>
+                </div>
+                <div class="card">
+                    <h3>Análise Gráfica</h3>
+                    <div style="height: 250px; margin-top: 15px;"><canvas id="chartMain"></canvas></div>
+                </div>
+            </section>
+
+            <section id="fuel" class="aba" style="display:none">
+                <div class="card">
+                    <h3>Registrar Diesel</h3>
+                    <input type="text" id="in-l" placeholder="Litros" inputmode="decimal" oninput="this.value = this.value.replace(',', '.')">
+                    <input type="text" id="in-v" placeholder="Placa/Prefixo" style="text-transform: uppercase;">
+                    <button onclick="salvar()" class="btn-main">GRAVAR AGORA</button>
+                </div>
+            </section>
+
+            <section id="logs" class="aba" style="display:none">
+                <div class="card">
+                    <h3>Histórico</h3>
+                    <div id="lista-logs"></div>
+                </div>
+            </section>
+
+            <section id="mgmt" class="aba" style="display:none">
+                <div class="card">
+                    <h3>Usuários do Sistema</h3>
+                    <input type="text" id="nu-name" placeholder="Nome">
+                    <input type="password" id="nu-pass" placeholder="Senha">
+                    <select id="nu-role">
+                        <option value="admin">Administrador</option>
+                        <option value="lancador">Lançador</option>
+                    </select>
+                    <button onclick="addU()" class="btn-success">CRIAR CONTA</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+<script>
+    const LOGS = 'sge_v15_logs';
+    const USERS = 'sge_v15_users';
+    const DEMO = 'sge_v15_demo';
+    
+    let user = null;
+    let chart = null;
+    let isDemo = false;
+
+    if (!localStorage.getItem(USERS)) {
+        localStorage.setItem(USERS, JSON.stringify([{ u: 'admin', p: 'admin123', role: 'admin' }]));
+    }
+
+    function login() {
+        const u = document.getElementById('user-in').value;
+        const p = document.getElementById('pass-in').value;
+        const users = JSON.parse(localStorage.getItem(USERS));
+        const found = users.find(x => x.u === u && x.p === p);
+
+        if (found) { user = found; isDemo = false; start(); } 
+        else { alert("Falha no login."); }
+    }
+
+    function modoTeste() {
+        user = { u: 'Visitante', role: 'admin' };
+        isDemo = true;
+        start();
+    }
+
+    function start() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-wrapper').style.display = 'flex';
+        buildMenu();
+        render();
+    }
+
+    function buildMenu() {
+        const menu = document.getElementById('main-menu');
+        document.getElementById('u-name').innerText = user.u;
+        document.getElementById('u-status').innerHTML = isDemo ? 
+            '<span class="badge" style="background:var(--warning)">Demonstração</span>' : 
+            `<span class="badge" style="background:var(--success)">${user.role}</span>`;
+
+        let h = `<div class="link active" onclick="tab('dash', this)">📊 Dashboard</div>`;
+        if (user.role === 'admin' || user.role === 'lancador') h += `<div class="link" onclick="tab('fuel', this)">⛽ Abastecer</div>`;
+        h += `<div class="link" onclick="tab('logs', this)">📜 Histórico</div>`;
+        if (!isDemo && user.role === 'admin') h += `<div class="link" onclick="tab('mgmt', this)">⚙️ Gestão</div>`;
+        
+        menu.innerHTML = h;
+    }
+
+    function tab(id, el) {
+        document.querySelectorAll('.aba').forEach(s => s.style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+        document.querySelectorAll('.link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+        if (id === 'dash') { render(); if(chart) setTimeout(() => chart.resize(), 150); }
+    }
+
+    function salvar() {
+        const l = parseFloat(document.getElementById('in-l').value);
+        const v = document.getElementById('in-v').value.trim().toUpperCase();
+        if (isNaN(l) || !v) return alert("Dados inválidos.");
+
+        const entry = { l, v, t: new Date().toLocaleString('pt-BR'), a: user.u };
+        let db = isDemo ? (JSON.parse(sessionStorage.getItem(DEMO)) || []) : (JSON.parse(localStorage.getItem(LOGS)) || []);
+        
+        db.push(entry);
+        if (isDemo) sessionStorage.setItem(DEMO, JSON.stringify(db));
+        else localStorage.setItem(LOGS, JSON.stringify(db));
+
+        document.getElementById('in-l').value = '';
+        document.getElementById('in-v').value = '';
+        alert("✔️ Salvo!");
+        render();
+    }
+
+    function addU() {
+        const u = document.getElementById('nu-name').value.trim();
+        const p = document.getElementById('nu-pass').value.trim();
+        const r = document.getElementById('nu-role').value;
+        if(!u || !p) return;
+        let d = JSON.parse(localStorage.getItem(USERS));
+        d.push({ u, p, role: r });
+        localStorage.setItem(USERS, JSON.stringify(d));
+        alert("Usuário Criado.");
+        document.getElementById('nu-name').value = ''; document.getElementById('nu-pass').value = '';
+    }
+
+    function render() {
+        const db = isDemo ? (JSON.parse(sessionStorage.getItem(DEMO)) || []) : (JSON.parse(localStorage.getItem(LOGS)) || []);
+        let total = 0;
+        let html = '';
+        const labels = [];
+        const data = [];
+
+        db.slice().reverse().forEach((item, idx) => {
+            total += item.l;
+            if(idx < 20) {
+                html += `<div class="log-row">
+                    <div><b>${item.v}</b><br><small style="opacity:0.6">${item.t}</small></div>
+                    <div style="font-weight:900; color:var(--accent)">${item.l.toFixed(1)} L</div>
+                </div>`;
+            }
+        });
+
+        db.slice(-10).forEach(i => { labels.push(i.v); data.push(i.l); });
+        document.getElementById('total-visor').innerText = total.toFixed(1) + " L";
+        document.getElementById('lista-logs').innerHTML = html || 'Vazio.';
+        
+        const canvas = document.getElementById('chartMain');
+        if (canvas && document.getElementById('dash').style.display !== 'none') {
+            const ctx = canvas.getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Litros', data, backgroundColor: '#3b82f6', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
+            });
+        }
+    }
+
+    function logout() { sessionStorage.removeItem(DEMO); location.reload(); }
+</script>
+</body>
+</html>
